@@ -27,6 +27,11 @@ class GameScene: SKScene {
   let colors = [SKColor.yellow, SKColor.red, SKColor.blue, SKColor.purple]
   let player = SKShapeNode(circleOfRadius: 40)
   
+  var obstacles: [SKNode] = []
+  let obstacleSpacing: CGFloat = 800
+  
+  let cameraNode = SKCameraNode()
+  
   struct PhysicsCategory {
     static let Player: UInt32 = 1
     static let Obstacle: UInt32 = 2
@@ -52,11 +57,18 @@ class GameScene: SKScene {
     
     // control the sink
     physicsWorld.gravity.dy = -22
+    physicsWorld.contactDelegate = self
+    
+    addChild(cameraNode)
+    camera = cameraNode
+    cameraNode.position = CGPoint(x: size.width/2, y: size.height/2)
   }
   
   func setupPlayerAndObstacles() {
     addObstacle()
     addPlayer()
+    addObstacle()
+    addObstacle()
   }
   
   func addPlayer() {
@@ -93,7 +105,8 @@ class GameScene: SKScene {
                 clockwise: false)
     
     let obstacle = obstacleByDuplicatingPath(path, clockwise: true)
-    obstacle.position = CGPoint(x: size.width/2, y: size.height/2)
+    obstacles.append(obstacle)
+    obstacle.position = CGPoint(x: size.width/2, y: obstacleSpacing * CGFloat(obstacles.count))
     addChild(obstacle)
     
     let rotateAction = SKAction.rotate(byAngle: 2.0 * CGFloat(M_PI), duration: 8.0)
@@ -127,13 +140,66 @@ class GameScene: SKScene {
       section.zRotation = rotationFactor * CGFloat(i)
       
       container.addChild(section)
+      
+      let sectionBody = SKPhysicsBody(polygonFrom: path.cgPath)
+      sectionBody.categoryBitMask = PhysicsCategory.Obstacle
+      sectionBody.collisionBitMask = 0
+      sectionBody.contactTestBitMask = PhysicsCategory.Player
+      sectionBody.affectedByGravity = false
+      section.physicsBody = sectionBody
     }
     
     return container
   }
   
+  func dieAndRestart() {
+    print("boom")
+    player.physicsBody?.velocity.dy = 0
+    player.removeFromParent()
+    
+    for node in obstacles {
+      node.removeFromParent()
+    }
+    
+    obstacles.removeAll()
+    
+    setupPlayerAndObstacles()
+    
+    cameraNode.position = CGPoint(x: size.width/2, y: size.height/2)
+  }
+  
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
     // control the jump
     player.physicsBody?.velocity.dy = 800.0
+  }
+  
+  override func update(_ currentTime: TimeInterval) {
+    
+    if player.position.y > obstacleSpacing * CGFloat(obstacles.count - 2) {
+      print("score")
+      // TODO: update score
+      addObstacle()
+    }
+    
+    let playerPositionInCamera = cameraNode.convert(player.position, from: self)
+    if playerPositionInCamera.y > 0 && !cameraNode.hasActions() {
+      cameraNode.position.y = player.position.y
+    }
+    
+    if playerPositionInCamera.y < -size.height/2 {
+      dieAndRestart()
+    }
+  }
+}
+
+extension GameScene: SKPhysicsContactDelegate {
+  
+  func didBegin(_ contact: SKPhysicsContact) {
+    
+    if let nodeA = contact.bodyA.node as? SKShapeNode, let nodeB = contact.bodyB.node as? SKShapeNode {
+      if nodeA.fillColor != nodeB.fillColor {
+        dieAndRestart()
+      }
+    }
   }
 }
