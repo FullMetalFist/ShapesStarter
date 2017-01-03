@@ -32,6 +32,9 @@ class GameScene: SKScene {
   
   let cameraNode = SKCameraNode()
   
+  let scoreLabel = SKLabelNode()
+  var score = 0
+  
   struct PhysicsCategory {
     static let Player: UInt32 = 1
     static let Obstacle: UInt32 = 2
@@ -62,6 +65,12 @@ class GameScene: SKScene {
     addChild(cameraNode)
     camera = cameraNode
     cameraNode.position = CGPoint(x: size.width/2, y: size.height/2)
+    
+    scoreLabel.position = CGPoint(x: -350, y: -900)
+    scoreLabel.fontColor = .white
+    scoreLabel.fontSize = 150
+    scoreLabel.text = String(score)
+    cameraNode.addChild(scoreLabel)
   }
   
   func setupPlayerAndObstacles() {
@@ -80,7 +89,28 @@ class GameScene: SKScene {
   }
   
   func addObstacle() {
+    let choice = Int(arc4random_uniform(2))
+    switch choice {
+    case 0:
+      addCircleObstacle()
+    case 1:
+      addSquareObstacle()
+    default:
+      print("something went wrong")
+    }
     addCircleObstacle()
+  }
+  
+  func addSquareObstacle() {
+    let path = UIBezierPath(roundedRect: CGRect(x: -200, y: -200, width: 400, height: 40), cornerRadius: 20)
+    
+    let obstacle = obstacleByDuplicatingPath(path, clockwise: false)
+    obstacles.append(obstacle)
+    obstacle.position = CGPoint(x: size.width/2, y: obstacleSpacing * CGFloat(obstacles.count))
+    addChild(obstacle)
+    
+    let rotateAction = SKAction.rotate(byAngle: -2.0 * CGFloat(M_PI), duration: 7.0)
+    obstacle.run(SKAction.repeatForever(rotateAction))
   }
   
   func addCircleObstacle() {
@@ -111,18 +141,6 @@ class GameScene: SKScene {
     
     let rotateAction = SKAction.rotate(byAngle: 2.0 * CGFloat(M_PI), duration: 8.0)
     obstacle.run(SKAction.repeatForever(rotateAction))
-//    let section = SKShapeNode(path: path.cgPath)
-//    section.position = CGPoint(x: size.width/2, y: size.height/2)
-//    section.fillColor = .yellow
-//    section.strokeColor = .yellow
-//    addChild(section)
-//    
-//    let section2 = SKShapeNode(path: path.cgPath)
-//    section2.position = CGPoint(x: size.width/2, y: size.height/2)
-//    section2.fillColor = .red
-//    section2.strokeColor = .red
-//    section2.zRotation = CGFloat(M_PI_2)
-//    addChild(section2)
   }
   
   func obstacleByDuplicatingPath(_ path: UIBezierPath, clockwise: Bool) -> SKNode {
@@ -166,6 +184,9 @@ class GameScene: SKScene {
     setupPlayerAndObstacles()
     
     cameraNode.position = CGPoint(x: size.width/2, y: size.height/2)
+    
+    score = 0
+    scoreLabel.text = String(score)
   }
   
   override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -177,7 +198,10 @@ class GameScene: SKScene {
     
     if player.position.y > obstacleSpacing * CGFloat(obstacles.count - 2) {
       print("score")
-      // TODO: update score
+      
+      score += 1
+      scoreLabel.text = String(score)
+      
       addObstacle()
     }
     
